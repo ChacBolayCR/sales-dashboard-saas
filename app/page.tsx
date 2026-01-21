@@ -12,6 +12,7 @@ import {
 } from "recharts"
 import FileUpload from "@/components/FileUpload"
 
+
 /* =====================
    TYPES
 ===================== */
@@ -20,6 +21,13 @@ type ChartItem = {
   date: string
   sales: number
 }
+type DateFilter =
+  | "ALL"
+  | "LAST_7"
+  | "LAST_30"
+  | "THIS_MONTH"
+  | "LAST_12_MONTHS"
+
 
 /* =====================
    PAGE
@@ -27,6 +35,7 @@ type ChartItem = {
 
 export default function Home() {
   const [chartData, setChartData] = useState<ChartItem[]>([])
+  const [dateFilter, setDateFilter] = useState<DateFilter>("ALL")
 
   /* =====================
      DATE RANGES (FIX)
@@ -189,6 +198,45 @@ export default function Home() {
     link.click()
     URL.revokeObjectURL(url)
   }
+  
+  /* =====================
+     FILTERS
+  ===================== */
+  const filteredData = chartData.filter(item => {
+  if (dateFilter === "ALL") return true
+
+  const d = new Date(item.date + "T00:00:00")
+  const now = new Date()
+
+  if (dateFilter === "LAST_7") {
+    const last7 = new Date()
+    last7.setDate(now.getDate() - 7)
+    return d >= last7
+  }
+
+  if (dateFilter === "LAST_30") {
+    const last30 = new Date()
+    last30.setDate(now.getDate() - 30)
+    return d >= last30
+  }
+
+  if (dateFilter === "THIS_MONTH") {
+    return (
+      d.getMonth() === now.getMonth() &&
+      d.getFullYear() === now.getFullYear()
+    )
+  }
+
+  if (dateFilter === "LAST_12_MONTHS") {
+    const last12 = new Date()
+    last12.setFullYear(now.getFullYear() - 1)
+    return d >= last12
+  }
+
+  return true
+})
+
+
 
   /* =====================
      UI
