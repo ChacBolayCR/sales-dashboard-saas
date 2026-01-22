@@ -36,7 +36,7 @@ export default function Home() {
   const [rangeFilter, setRangeFilter] = useState("90d")
 
   /* =====================
-     FILTERS
+     FILTERED DATA
   ===================== */
 
   const filteredData = useMemo(() => {
@@ -65,7 +65,7 @@ export default function Home() {
   }, [data, productFilter, rangeFilter])
 
   /* =====================
-     KPI LOGIC
+     KPI LOGIC (SMART)
   ===================== */
 
   const monthlyMap: Record<string, number> = {}
@@ -83,29 +83,26 @@ export default function Home() {
         monthlyTotals.length
       : 0
 
-  const currentMonthKey = (() => {
-    const now = new Date()
-    return `${now.getFullYear()}-${now.getMonth()}`
-  })()
-
+  const now = new Date()
+  const currentMonthKey = `${now.getFullYear()}-${now.getMonth()}`
   const currentMonthSales = monthlyMap[currentMonthKey] || 0
   const smartDifference = currentMonthSales - averageMonthlySales
 
   /* =====================
-     INSIGHT
+     KPI INSIGHT
   ===================== */
 
-  let insight = "📊 Ventas dentro de lo normal."
-  let insightColor = "text-gray-600"
+  let insight = "📊 Ventas dentro del comportamiento normal."
+  let insightColor = "text-gray-700"
 
   if (smartDifference > averageMonthlySales * 0.15) {
-    insight = "🚀 Mes excepcional, muy por encima de lo normal."
+    insight = "🚀 Mes excepcional: ventas muy por encima de lo normal."
     insightColor = "text-green-600"
   } else if (smartDifference > 0) {
-    insight = "👍 Buen mes, ventas saludables."
+    insight = "👍 Buen mes: ventas por encima del promedio."
     insightColor = "text-green-500"
   } else if (smartDifference < -averageMonthlySales * 0.15) {
-    insight = "🚨 Ventas muy por debajo de lo esperado."
+    insight = "⚠️ Mes débil: ventas muy por debajo de lo esperado."
     insightColor = "text-red-600"
   }
 
@@ -169,23 +166,48 @@ export default function Home() {
     y += 6
     doc.text(`Promedio mensual: $${averageMonthlySales.toFixed(0)}`, 14, y)
     y += 6
-    doc.text(`Diferencia: $${smartDifference.toFixed(0)}`, 14, y)
+    doc.text(`Diferencia vs normal: $${smartDifference.toFixed(0)}`, 14, y)
     y += 10
 
-    doc.text("Insight:", 14, y)
+    doc.text("Conclusión:", 14, y)
     y += 6
-    doc.text(insight.replace(/📊|🚀|👍|🚨/g, ""), 14, y)
-    y += 10
-
-    doc.text("Top productos:", 14, y)
-    y += 6
-
-    topProducts.forEach(p => {
-      doc.text(`• ${p.product}: $${p.sales}`, 18, y)
-      y += 6
-    })
+    doc.text(insight.replace(/🚀|👍|⚠️|📊/g, ""), 14, y)
 
     doc.save("reporte_ventas.pdf")
+  }
+
+  /* =====================
+     SAMPLE CSV
+  ===================== */
+
+  const downloadSampleCSV = () => {
+    const end = new Date()
+    const start = new Date()
+    start.setFullYear(end.getFullYear() - 1)
+
+    let csv = "date,sales,product\n"
+    const products = ["Res", "Cerdo", "Pollo", "Embutidos"]
+
+    const current = new Date(start)
+    let base = 80
+
+    while (current <= end) {
+      base += 0.05
+      const noise = Math.floor(Math.random() * 30) - 15
+      const sales = Math.max(30, Math.round(base + noise))
+      const product = products[Math.floor(Math.random() * products.length)]
+
+      csv += `${current.toISOString().split("T")[0]},${sales},${product}\n`
+      current.setDate(current.getDate() + 1)
+    }
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    link.href = url
+    link.download = "sales_demo_full.csv"
+    link.click()
+    URL.revokeObjectURL(url)
   }
 
   /* =====================
@@ -200,21 +222,34 @@ export default function Home() {
           <h1 className="text-3xl font-bold text-gray-900">
             Sales Analytics
           </h1>
-
           <p className="text-gray-700">
-            Dashboard simple para entender tus ventas
+            Entiende tus ventas sin ser experto en datos
           </p>
-
         </header>
 
-        <FileUpload onDataLoaded={setData} />
+        {/* Upload + Demo */}
+        <div className="bg-white p-4 rounded shadow space-y-3">
+          <FileUpload onDataLoaded={setData} />
+
+          <div className="flex justify-between text-sm text-gray-700">
+            <span>
+              ¿No tienes datos todavía?
+            </span>
+            <button
+              onClick={downloadSampleCSV}
+              className="text-blue-700 font-semibold hover:underline"
+            >
+              Descargar archivo de ejemplo
+            </button>
+          </div>
+        </div>
 
         {/* Filters */}
         <div className="flex gap-4">
           <select
             value={productFilter}
             onChange={e => setProductFilter(e.target.value)}
-            className="border rounded p-2 text-gray-700"
+            className="border rounded p-2 text-gray-800"
           >
             <option value="All">Todos los productos</option>
             {[...new Set(data.map(d => d.product))].map(p =>
@@ -225,7 +260,7 @@ export default function Home() {
           <select
             value={rangeFilter}
             onChange={e => setRangeFilter(e.target.value)}
-            className="border rounded p-2 text-gray-700"
+            className="border rounded p-2 text-gray-800"
           >
             <option value="30d">Últimos 30 días</option>
             <option value="90d">Últimos 90 días</option>
@@ -235,86 +270,85 @@ export default function Home() {
 
           <button
             onClick={exportPDF}
-            className="bg-gray-800 text-white px-4 py-2 rounded"
+            className="bg-gray-900 text-white px-4 py-2 rounded"
           >
-            Exportar PDF
+            Exportar resumen
           </button>
         </div>
 
         {/* KPIs */}
         <section className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Kpi text-gray-800 title="Mes actual" value={currentMonthSales} />
-          <Kpi text-gray-800 title="Promedio mensual" value={averageMonthlySales} />
-          <Kpi text-gray-800 title="Diferencia vs normal" value={smartDifference} />
-          <Kpi text-gray-800 title="Productos activos" value={Object.keys(productTotals).length} />
+          <Kpi title="Ventas del mes" value={currentMonthSales} help="Total vendido en el mes actual" />
+          <Kpi title="Promedio mensual" value={averageMonthlySales} help="Promedio histórico mensual" />
+          <Kpi title="Diferencia vs normal" value={smartDifference} help="Comparación inteligente" />
+          <Kpi title="Productos activos" value={Object.keys(productTotals).length} help="Productos con ventas" />
         </section>
 
         <p className={`font-medium ${insightColor}`}>{insight}</p>
 
         {/* Charts */}
-        <section className="font-semibold text-gray-800 mb-2">
-          <Chart title="Evolución de ventas">
+        <section className="grid md:grid-cols-2 gap-6">
+          <Chart
+            title="Evolución de ventas"
+            subtitle="Cómo se han comportado tus ventas en el tiempo"
+          >
             <LineChart data={filteredData}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis
-                dataKey="date"
-                tick={{ fill: "#374151", fontSize: 12 }}
-              />
-
-              <YAxis
-                tick={{ fill: "#374151", fontSize: 12 }}
-              />
-
+              <XAxis dataKey="date" tick={{ fill: "#374151" }} />
+              <YAxis tick={{ fill: "#374151" }} />
               <Tooltip />
               <Legend />
               <Line dataKey="sales" stroke="#2563eb" />
             </LineChart>
           </Chart>
 
-          <Chart title="Top productos">
+          <Chart
+            title="Top productos"
+            subtitle="Productos que más dinero generan"
+          >
             <BarChart data={topProducts}>
-              <XAxis
-                dataKey="date"
-                tick={{ fill: "#374151", fontSize: 12 }}
-              />
-
-              <YAxis
-                tick={{ fill: "#374151", fontSize: 12 }}
-              />
-
+              <XAxis dataKey="product" />
+              <YAxis />
               <Tooltip />
               <Bar dataKey="sales" fill="#16a34a" />
             </BarChart>
           </Chart>
         </section>
-        
-        <section className="font-semibold text-gray-800 mb-2">
-          <Chart title="Proyección de ventas (7 días)">
-            <LineChart data={forecastData}>
-              <XAxis
-                dataKey="date"
-                tick={{ fill: "#374151", fontSize: 12 }}
-              />
 
-              <YAxis
-                tick={{ fill: "#374151", fontSize: 12 }}
-              />
+        <Chart
+          title="Proyección de ventas (7 días)"
+          subtitle="Estimación basada en el comportamiento reciente"
+        >
+          <LineChart data={forecastData}>
+            <XAxis dataKey="date" />
+            <YAxis />
+            <Tooltip />
+            <Line
+              dataKey="projected"
+              stroke="#16a34a"
+              strokeDasharray="5 5"
+            />
+          </LineChart>
+        </Chart>
 
-              <Tooltip />
-              <Line dataKey="projected" stroke="#16a34a" strokeDasharray="5 5" />
-            </LineChart>
-          </Chart>
-        </section>
       </div>
     </main>
   )
 }
 
 /* =====================
-   UI HELPERS
+   COMPONENTS
 ===================== */
 
-function Kpi({ title, value }: { title: string; value: number }) {
+function Kpi({
+  title,
+  value,
+  help,
+}: {
+  title: string
+  value: number
+  help: string
+}) {
   return (
     <div className="bg-white p-4 rounded shadow">
       <p className="text-sm font-semibold text-gray-700">
@@ -323,21 +357,30 @@ function Kpi({ title, value }: { title: string; value: number }) {
       <p className="text-2xl font-bold text-gray-900">
         {value.toFixed(0)}
       </p>
+      <p className="text-xs text-gray-500 mt-1">
+        {help}
+      </p>
     </div>
   )
 }
 
-
 function Chart({
   title,
+  subtitle,
   children,
 }: {
   title: string
+  subtitle: string
   children: React.ReactNode
 }) {
   return (
     <div className="bg-white p-4 rounded shadow">
-      <h3 className="font-semibold mb-2">{title}</h3>
+      <h3 className="font-semibold text-gray-800">
+        {title}
+      </h3>
+      <p className="text-xs text-gray-600 mb-2">
+        {subtitle}
+      </p>
       <ResponsiveContainer width="100%" height={300}>
         {children as any}
       </ResponsiveContainer>
