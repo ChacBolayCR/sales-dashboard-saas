@@ -92,7 +92,7 @@ export default function FileUpload({ onDataLoaded }: FileUploadProps) {
 
   return (
     <div className="border-2 border-dashed border-gray-600 rounded-xl p-4">
-      <label className="block text-sm font-medium text-gray-700 mb-2">
+      <label className="block text-sm font-medium text-gray-800 mb-2">
         Selecciona tu archivo CSV
       </label>
 
@@ -104,7 +104,7 @@ export default function FileUpload({ onDataLoaded }: FileUploadProps) {
       />
 
       {loading && (
-        <p className="text-sm text-gray-500 mt-2">
+        <p className="text-sm text-gray-800 mt-2">
           ⏳ Procesando archivo…
         </p>
       )}
@@ -115,7 +115,7 @@ export default function FileUpload({ onDataLoaded }: FileUploadProps) {
         </p>
       )}
 
-      <p className="text-xs text-gray-500 mt-3">
+      <p className="text-xs text-gray-800 mt-3">
         Columnas: date, sales, product (product es opcional)
       </p>
     </div>

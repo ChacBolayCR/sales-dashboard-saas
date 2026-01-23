@@ -14,7 +14,9 @@ import {
   Legend,
 } from "recharts"
 import jsPDF from "jspdf"
+
 import FileUpload from "@/components/FileUpload"
+import FeedbackModal from "@/components/FeedBackModal"
 
 /* =====================
    TYPES
@@ -35,6 +37,9 @@ export default function Home() {
   const [productFilter, setProductFilter] = useState("All")
   const [rangeFilter, setRangeFilter] = useState("90d")
 
+  const [showFeedbackBanner, setShowFeedbackBanner] = useState(true)
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false)
+
   /* =====================
      FILTERED DATA
   ===================== */
@@ -46,7 +51,6 @@ export default function Home() {
       result = result.filter(d => d.product === productFilter)
     }
 
-    const today = new Date()
     if (rangeFilter !== "all") {
       const days =
         rangeFilter === "30d" ? 30 :
@@ -54,7 +58,7 @@ export default function Home() {
         180
 
       const limit = new Date()
-      limit.setDate(today.getDate() - days)
+      limit.setDate(limit.getDate() - days)
 
       result = result.filter(
         d => new Date(d.date + "T00:00:00") >= limit
@@ -77,10 +81,10 @@ export default function Home() {
   })
 
   const monthlyTotals = Object.values(monthlyMap)
+
   const averageMonthlySales =
     monthlyTotals.length > 0
-      ? monthlyTotals.reduce((a, b) => a + b, 0) /
-        monthlyTotals.length
+      ? monthlyTotals.reduce((a, b) => a + b, 0) / monthlyTotals.length
       : 0
 
   const now = new Date()
@@ -93,27 +97,26 @@ export default function Home() {
   ===================== */
 
   let insight = "📊 Ventas dentro del comportamiento normal."
-  let insightColor = "text-gray-700"
+  let insightColor = "text-gray-800"
 
   if (smartDifference > averageMonthlySales * 0.15) {
     insight = "🚀 Mes excepcional: ventas muy por encima de lo normal."
-    insightColor = "text-green-600"
+    insightColor = "text-green-700"
   } else if (smartDifference > 0) {
     insight = "👍 Buen mes: ventas por encima del promedio."
-    insightColor = "text-green-500"
+    insightColor = "text-green-600"
   } else if (smartDifference < -averageMonthlySales * 0.15) {
-    insight = "⚠️ Mes débil: ventas muy por debajo de lo esperado."
+    insight = "⚠️ Mes débil: ventas por debajo de lo esperado."
     insightColor = "text-red-600"
   }
 
   /* =====================
-     FORECAST (FUTURE ONLY)
+     FORECAST (FUTURE)
   ===================== */
 
   const dailyAvg =
     filteredData.length > 0
-      ? filteredData.reduce((s, d) => s + d.sales, 0) /
-        filteredData.length
+      ? filteredData.reduce((s, d) => s + d.sales, 0) / filteredData.length
       : 0
 
   const forecastData = Array.from({ length: 7 }, (_, i) => {
@@ -227,25 +230,49 @@ export default function Home() {
           </p>
         </header>
 
-        {/* Upload + Demo */}
+        {showFeedbackBanner && (
+          <div className="bg-blue-50 border border-blue-200 rounded p-4 flex justify-between items-center">
+            <div>
+              <p className="font-semibold text-blue-900">
+                💬 Ayúdanos a mejorar esta herramienta
+              </p>
+              <p className="text-sm text-blue-800">
+                Tu opinión nos ayuda a construir algo útil (1 minuto)
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowFeedbackModal(true)}
+                className="bg-blue-600 text-white px-4 py-2 rounded"
+              >
+                Dar feedback
+              </button>
+              <button
+                onClick={() => setShowFeedbackBanner(false)}
+                className="text-sm text-blue-700 underline"
+              >
+                Ahora no
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Upload */}
         <div className="bg-white p-4 rounded shadow space-y-3">
           <FileUpload onDataLoaded={setData} />
-
           <div className="flex justify-between text-sm text-gray-700">
-            <span>
-              ¿No tienes datos todavía?
-            </span>
+            <span>¿No tienes datos?</span>
             <button
               onClick={downloadSampleCSV}
               className="text-blue-700 font-semibold hover:underline"
             >
-              Descargar archivo de ejemplo
+              Descargar archivo demo
             </button>
           </div>
         </div>
 
         {/* Filters */}
-        <div className="flex gap-4">
+        <div className="flex gap-4 flex-wrap">
           <select
             value={productFilter}
             onChange={e => setProductFilter(e.target.value)}
@@ -278,34 +305,28 @@ export default function Home() {
 
         {/* KPIs */}
         <section className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Kpi title="Ventas del mes" value={currentMonthSales} help="Total vendido en el mes actual" />
-          <Kpi title="Promedio mensual" value={averageMonthlySales} help="Promedio histórico mensual" />
+          <Kpi title="Ventas del mes" value={currentMonthSales} help="Mes actual" />
+          <Kpi title="Promedio mensual" value={averageMonthlySales} help="Promedio histórico" />
           <Kpi title="Diferencia vs normal" value={smartDifference} help="Comparación inteligente" />
-          <Kpi title="Productos activos" value={Object.keys(productTotals).length} help="Productos con ventas" />
+          <Kpi title="Productos activos" value={Object.keys(productTotals).length} help="Con ventas" />
         </section>
 
         <p className={`font-medium ${insightColor}`}>{insight}</p>
 
         {/* Charts */}
         <section className="grid md:grid-cols-2 gap-6">
-          <Chart
-            title="Evolución de ventas"
-            subtitle="Cómo se han comportado tus ventas en el tiempo"
-          >
+          <Chart title="Evolución de ventas" subtitle="Ventas en el tiempo">
             <LineChart data={filteredData}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="date" tick={{ fill: "#374151" }} />
-              <YAxis tick={{ fill: "#374151" }} />
+              <XAxis dataKey="date" />
+              <YAxis />
               <Tooltip />
               <Legend />
               <Line dataKey="sales" stroke="#2563eb" />
             </LineChart>
           </Chart>
 
-          <Chart
-            title="Top productos"
-            subtitle="Productos que más dinero generan"
-          >
+          <Chart title="Top productos" subtitle="Más vendidos">
             <BarChart data={topProducts}>
               <XAxis dataKey="product" />
               <YAxis />
@@ -315,10 +336,7 @@ export default function Home() {
           </Chart>
         </section>
 
-        <Chart
-          title="Proyección de ventas (7 días)"
-          subtitle="Estimación basada en el comportamiento reciente"
-        >
+        <Chart title="Proyección (7 días)" subtitle="Estimación futura">
           <LineChart data={forecastData}>
             <XAxis dataKey="date" />
             <YAxis />
@@ -330,8 +348,13 @@ export default function Home() {
             />
           </LineChart>
         </Chart>
-
       </div>
+
+      {/* Feedback Modal */}
+      <FeedbackModal
+        open={showFeedbackModal}
+        onClose={() => setShowFeedbackModal(false)}
+      />
     </main>
   )
 }
@@ -351,15 +374,11 @@ function Kpi({
 }) {
   return (
     <div className="bg-white p-4 rounded shadow">
-      <p className="text-sm font-semibold text-gray-700">
-        {title}
-      </p>
+      <p className="text-sm font-semibold text-gray-700">{title}</p>
       <p className="text-2xl font-bold text-gray-900">
         {value.toFixed(0)}
       </p>
-      <p className="text-xs text-gray-500 mt-1">
-        {help}
-      </p>
+      <p className="text-xs text-gray-500">{help}</p>
     </div>
   )
 }
@@ -375,12 +394,8 @@ function Chart({
 }) {
   return (
     <div className="bg-white p-4 rounded shadow">
-      <h3 className="font-semibold text-gray-800">
-        {title}
-      </h3>
-      <p className="text-xs text-gray-600 mb-2">
-        {subtitle}
-      </p>
+      <h3 className="font-semibold text-gray-800">{title}</h3>
+      <p className="text-xs text-gray-600 mb-2">{subtitle}</p>
       <ResponsiveContainer width="100%" height={300}>
         {children as any}
       </ResponsiveContainer>
