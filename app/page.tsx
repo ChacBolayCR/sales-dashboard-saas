@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useMemo } from "react"
+import jsPDF from "jspdf"
 import {
   LineChart,
   Line,
@@ -13,7 +14,6 @@ import {
   Bar,
   Legend,
 } from "recharts"
-import jsPDF from "jspdf"
 
 import FileUpload from "@/components/FileUpload"
 import FeedbackModal from "@/components/FeedBackModal"
@@ -69,7 +69,7 @@ export default function Home() {
   }, [data, productFilter, rangeFilter])
 
   /* =====================
-     KPI LOGIC (SMART)
+     KPI LOGIC
   ===================== */
 
   const monthlyMap: Record<string, number> = {}
@@ -96,22 +96,22 @@ export default function Home() {
      KPI INSIGHT
   ===================== */
 
-  let insight = "📊 Ventas dentro del comportamiento normal."
+  let insight = "Ventas dentro del comportamiento normal."
   let insightColor = "text-gray-800"
 
   if (smartDifference > averageMonthlySales * 0.15) {
-    insight = "🚀 Mes excepcional: ventas muy por encima de lo normal."
+    insight = "Mes excepcional: ventas muy por encima de lo normal."
     insightColor = "text-green-700"
   } else if (smartDifference > 0) {
-    insight = "👍 Buen mes: ventas por encima del promedio."
+    insight = "Buen mes: ventas por encima del promedio."
     insightColor = "text-green-600"
   } else if (smartDifference < -averageMonthlySales * 0.15) {
-    insight = "⚠️ Mes débil: ventas por debajo de lo esperado."
+    insight = "Mes débil: ventas por debajo de lo esperado."
     insightColor = "text-red-600"
   }
 
   /* =====================
-     FORECAST (FUTURE)
+     FORECAST
   ===================== */
 
   const dailyAvg =
@@ -146,23 +146,23 @@ export default function Home() {
     .slice(0, 5)
 
   /* =====================
-     EXPORT PDF
+     EXPORT PDF (SAFE)
   ===================== */
 
   const exportPDF = () => {
-    const doc = new jsPDF()
+    const doc = new jsPDF("p", "mm", "a4")
     let y = 20
 
+    doc.setFont("helvetica", "bold")
     doc.setFontSize(18)
-    doc.text("Reporte de Ventas", 14, y)
+    doc.text("Reporte Ejecutivo de Ventas", 14, y)
     y += 10
 
+    doc.setFont("helvetica", "normal")
     doc.setFontSize(11)
-    doc.text(
-      `Producto: ${productFilter} | Rango: ${rangeFilter}`,
-      14,
-      y
-    )
+    doc.text(`Producto: ${productFilter}`, 14, y)
+    y += 6
+    doc.text(`Rango: ${rangeFilter}`, 14, y)
     y += 10
 
     doc.text(`Ventas mes actual: $${currentMonthSales.toFixed(0)}`, 14, y)
@@ -172,45 +172,39 @@ export default function Home() {
     doc.text(`Diferencia vs normal: $${smartDifference.toFixed(0)}`, 14, y)
     y += 10
 
-    doc.text("Conclusión:", 14, y)
+    doc.setFont("helvetica", "bold")
+    doc.text("Insight:", 14, y)
     y += 6
-    doc.text(insight.replace(/🚀|👍|⚠️|📊/g, ""), 14, y)
+    doc.setFont("helvetica", "normal")
+    doc.text(insight, 14, y)
+    y += 12
 
-    doc.save("reporte_ventas.pdf")
-  }
+    doc.setFont("helvetica", "bold")
+    doc.text("Top productos", 14, y)
+    y += 6
 
-  /* =====================
-     SAMPLE CSV
-  ===================== */
+    doc.setFontSize(10)
+    topProducts.forEach((p, i) => {
+      doc.text(`${i + 1}. ${p.product} - $${p.sales.toFixed(0)}`, 16, y)
+      y += 5
+    })
 
-  const downloadSampleCSV = () => {
-    const end = new Date()
-    const start = new Date()
-    start.setFullYear(end.getFullYear() - 1)
+    y += 8
 
-    let csv = "date,sales,product\n"
-    const products = ["Res", "Cerdo", "Pollo", "Embutidos"]
+    doc.setFont("helvetica", "bold")
+    doc.text("Proyección (7 días)", 14, y)
+    y += 6
 
-    const current = new Date(start)
-    let base = 80
+    doc.setFont("helvetica", "normal")
+    forecastData.forEach(d => {
+      doc.text(`${d.date}: $${d.projected}`, 16, y)
+      y += 4
+    })
 
-    while (current <= end) {
-      base += 0.05
-      const noise = Math.floor(Math.random() * 30) - 15
-      const sales = Math.max(30, Math.round(base + noise))
-      const product = products[Math.floor(Math.random() * products.length)]
+    doc.setFontSize(9)
+    doc.text("Generado por Sales Analytics", 14, 285)
 
-      csv += `${current.toISOString().split("T")[0]},${sales},${product}\n`
-      current.setDate(current.getDate() + 1)
-    }
-
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement("a")
-    link.href = url
-    link.download = "sales_demo_full.csv"
-    link.click()
-    URL.revokeObjectURL(url)
+    doc.save("reporte_ventas_ejecutivo.pdf")
   }
 
   /* =====================
@@ -231,13 +225,13 @@ export default function Home() {
         </header>
 
         {showFeedbackBanner && (
-          <div className="bg-blue-50 border border-blue-200 rounded p-4 flex justify-between items-center">
+          <div className="bg-blue-50 border border-blue-200 rounded p-4 flex justify-between">
             <div>
               <p className="font-semibold text-blue-900">
-                💬 Ayúdanos a mejorar esta herramienta
+                Ayúdanos a mejorar esta herramienta
               </p>
               <p className="text-sm text-blue-800">
-                Tu opinión nos ayuda a construir algo útil (1 minuto)
+                Tu opinión nos ayuda a construir algo útil
               </p>
             </div>
             <div className="flex gap-2">
@@ -249,7 +243,7 @@ export default function Home() {
               </button>
               <button
                 onClick={() => setShowFeedbackBanner(false)}
-                className="text-sm text-blue-700 underline"
+                className="text-blue-700 underline text-sm"
               >
                 Ahora no
               </button>
@@ -257,26 +251,15 @@ export default function Home() {
           </div>
         )}
 
-        {/* Upload */}
-        <div className="bg-white p-4 rounded shadow space-y-3">
+        <div className="bg-white p-4 rounded shadow">
           <FileUpload onDataLoaded={setData} />
-          <div className="flex justify-between text-sm text-gray-700">
-            <span>¿No tienes datos?</span>
-            <button
-              onClick={downloadSampleCSV}
-              className="text-blue-700 font-semibold hover:underline"
-            >
-              Descargar archivo demo
-            </button>
-          </div>
         </div>
 
-        {/* Filters */}
         <div className="flex gap-4 flex-wrap">
           <select
             value={productFilter}
             onChange={e => setProductFilter(e.target.value)}
-            className="border rounded p-2 text-gray-800"
+            className="border rounded p-2 bg-gray-600 text-white"
           >
             <option value="All">Todos los productos</option>
             {[...new Set(data.map(d => d.product))].map(p =>
@@ -287,7 +270,7 @@ export default function Home() {
           <select
             value={rangeFilter}
             onChange={e => setRangeFilter(e.target.value)}
-            className="border rounded p-2 text-gray-800"
+            className="border rounded p-2 bg-gray-600 text-white"
           >
             <option value="30d">Últimos 30 días</option>
             <option value="90d">Últimos 90 días</option>
@@ -299,23 +282,21 @@ export default function Home() {
             onClick={exportPDF}
             className="bg-gray-900 text-white px-4 py-2 rounded"
           >
-            Exportar resumen
+            Exportar PDF ejecutivo
           </button>
         </div>
 
-        {/* KPIs */}
         <section className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Kpi title="Ventas del mes" value={currentMonthSales} help="Mes actual" />
-          <Kpi title="Promedio mensual" value={averageMonthlySales} help="Promedio histórico" />
-          <Kpi title="Diferencia vs normal" value={smartDifference} help="Comparación inteligente" />
-          <Kpi title="Productos activos" value={Object.keys(productTotals).length} help="Con ventas" />
+          <Kpi title="Ventas del mes" value={currentMonthSales} />
+          <Kpi title="Promedio mensual" value={averageMonthlySales} />
+          <Kpi title="Diferencia" value={smartDifference} />
+          <Kpi title="Productos activos" value={Object.keys(productTotals).length} />
         </section>
 
         <p className={`font-medium ${insightColor}`}>{insight}</p>
 
-        {/* Charts */}
         <section className="grid md:grid-cols-2 gap-6">
-          <Chart title="Evolución de ventas" subtitle="Ventas en el tiempo">
+          <Chart title="Evolución de ventas">
             <LineChart data={filteredData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="date" />
@@ -326,7 +307,7 @@ export default function Home() {
             </LineChart>
           </Chart>
 
-          <Chart title="Top productos" subtitle="Más vendidos">
+          <Chart title="Top productos">
             <BarChart data={topProducts}>
               <XAxis dataKey="product" />
               <YAxis />
@@ -336,7 +317,7 @@ export default function Home() {
           </Chart>
         </section>
 
-        <Chart title="Proyección (7 días)" subtitle="Estimación futura">
+        <Chart title="Proyección (7 días)">
           <LineChart data={forecastData}>
             <XAxis dataKey="date" />
             <YAxis />
@@ -350,7 +331,6 @@ export default function Home() {
         </Chart>
       </div>
 
-      {/* Feedback Modal */}
       <FeedbackModal
         open={showFeedbackModal}
         onClose={() => setShowFeedbackModal(false)}
@@ -363,39 +343,27 @@ export default function Home() {
    COMPONENTS
 ===================== */
 
-function Kpi({
-  title,
-  value,
-  help,
-}: {
-  title: string
-  value: number
-  help: string
-}) {
+function Kpi({ title, value }: { title: string; value: number }) {
   return (
-    <div className="bg-white p-4 rounded shadow">
+    <div className="bg-white p-4 rounded border">
       <p className="text-sm font-semibold text-gray-700">{title}</p>
       <p className="text-2xl font-bold text-gray-900">
         {value.toFixed(0)}
       </p>
-      <p className="text-xs text-gray-500">{help}</p>
     </div>
   )
 }
 
 function Chart({
   title,
-  subtitle,
   children,
 }: {
   title: string
-  subtitle: string
   children: React.ReactNode
 }) {
   return (
     <div className="bg-white p-4 rounded shadow">
-      <h3 className="font-semibold text-gray-800">{title}</h3>
-      <p className="text-xs text-gray-600 mb-2">{subtitle}</p>
+      <h3 className="font-semibold text-gray-800 mb-2">{title}</h3>
       <ResponsiveContainer width="100%" height={300}>
         {children as any}
       </ResponsiveContainer>
